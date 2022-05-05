@@ -25,8 +25,11 @@ gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
+import ctypes
 
 import pyds
+
+ctypes.cdll.LoadLibrary('/opt/nvidia/deepstream/deepstream/sources/pythonapps/models/yolov5/yolov5s/libYoloV5Decoder.so')
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -37,12 +40,6 @@ PGIE_CLASS_ID_ROADSIGN = 3
 def osd_sink_pad_buffer_probe(pad,info,u_data):
     frame_number=0
     #Intiallizing object counter with 0.
-    obj_counter = {
-        PGIE_CLASS_ID_VEHICLE:0,
-        PGIE_CLASS_ID_PERSON:0,
-        PGIE_CLASS_ID_BICYCLE:0,
-        PGIE_CLASS_ID_ROADSIGN:0
-    }
     num_rects=0
 
     gst_buffer = info.get_buffer()
@@ -73,10 +70,8 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         frame_number=frame_meta.frame_num
         num_rects = frame_meta.num_obj_meta
-        display_meta.num_circles = num_rects
 
         l_obj=frame_meta.obj_meta_list
-        i=0
         while l_obj is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
@@ -92,11 +87,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
             obj_meta.rect_params.border_width=0
             obj_meta.rect_params.has_bg_color=1
             obj_meta.rect_params.bg_color.set(0.0, 0.5, 0.3, 0.4)
-            display_meta.circle_params[i].xc=int(obj_meta.detector_bbox_info.org_bbox_coords.left)
-            display_meta.circle_params[i].yc=int(obj_meta.detector_bbox_info.org_bbox_coords.top)
-            display_meta.circle_params[i].radius=20
-            display_meta.circle_params[i].circle_color.set(0.0, 0.0, 0.0, 1.0)
-            i = i+1
+   
             try: 
                 l_obj=l_obj.next
             except StopIteration:
@@ -225,7 +216,7 @@ def main(args):
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', 1)
     streammux.set_property('batched-push-timeout', 4000000)
-    pgie.set_property('config-file-path', "deepstream_yolov5_config.txt")
+    pgie.set_property('config-file-path', "config/deepstream_yolov5_config.txt")
 
     print("Adding elements to Pipeline \n")
     pipeline.add(source)
