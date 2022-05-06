@@ -12,9 +12,10 @@ maintain-aspect-ratio=0
 parse-bbox-func-name=NvDsInferParseCustomYoloV5
 
 #####################NEED TO MODIFY THE CORRECT PATH##################################################
-custom-lib-path=nvdsinfer_custom_impl_Yolo/libnvdsinfer_custom_impl_Yolo.so
-model-engine-file=yolov5n.engine
-labelfile-path=labels.txt
+
+custom-lib-path=../nvdsinfer_custom_impl_Yolo/libnvdsinfer_custom_impl_Yolo.so
+model-engine-file=/opt/nvidia/deepstream/deepstream/sources/pythonapps/models/yolov5/yolov5s/yolov5s.engine
+labelfile-path=/opt/nvidia/deepstream/deepstream/sources/pythonapps/models/yolov5/yolov5s/labels.txt
 
 [class-attrs-all]
 pre-cluster-threshold=0.25

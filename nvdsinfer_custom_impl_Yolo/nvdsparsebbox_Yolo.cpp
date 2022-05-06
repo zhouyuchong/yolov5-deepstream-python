@@ -1,32 +1,48 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #include <algorithm>
+#include <map>
 #include <cassert>
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+
 #include "nvdsinfer_custom_impl.h"
 
-#include <map>
+static const int NUM_CLASSES_YOLO = 80;
+#define NMS_THRESH 0.5
+#define CONF_THRESH 0.4
+#define BATCH_SIZE 1
 
-#define kNMS_THRESH 0.45
+extern "C" bool NvDsInferParseCustomYoloV5(
+    std::vector<NvDsInferLayerInfo> const &outputLayersInfo,
+    NvDsInferNetworkInfo const &networkInfo,
+    NvDsInferParseDetectionParams const &detectionParams,
+    std::vector<NvDsInferParseObjectInfo> &objectList);
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static constexpr int LOCATIONS = 4;
 struct alignas(float) Detection{
         //center_x center_y w h
@@ -54,7 +70,7 @@ bool cmp(Detection& a, Detection& b) {
     return a.conf > b.conf;
 }
 
-void nms(std::vector<Detection>& res, float *output, float conf_thresh, float nms_thresh) {
+void nms(std::vector<Detection>& res, float *output, float conf_thresh, float nms_thresh = 0.5) {
     int det_size = sizeof(Detection) / sizeof(float);
     std::map<float, std::vector<Detection>> m;
     for (int i = 0; i < output[0] && i < 1000; i++) {
@@ -79,19 +95,25 @@ void nms(std::vector<Detection>& res, float *output, float conf_thresh, float nm
         }
     }
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/* This is a sample bounding box parsing function for the sample YoloV5 detector model */
+/* This is a sample bounding box parsing function for the sample YoloV5m detector model */
 static bool NvDsInferParseYoloV5(
     std::vector<NvDsInferLayerInfo> const& outputLayersInfo,
     NvDsInferNetworkInfo const& networkInfo,
     NvDsInferParseDetectionParams const& detectionParams,
     std::vector<NvDsInferParseObjectInfo>& objectList)
 {
-    const float kCONF_THRESH = detectionParams.perClassThreshold[0];
+    if (NUM_CLASSES_YOLO != detectionParams.numClassesConfigured)
+    {
+        std::cerr << "WARNING: Num classes mismatch. Configured:"
+                  << detectionParams.numClassesConfigured
+                  << ", detected by network: " << NUM_CLASSES_YOLO << std::endl;
+    }
 
     std::vector<Detection> res;
 
-    nms(res, (float*)(outputLayersInfo[0].buffer), kCONF_THRESH, kNMS_THRESH);
+    nms(res, (float*)(outputLayersInfo[0].buffer), CONF_THRESH, NMS_THRESH);
     
     for(auto& r : res) {
 	    NvDsInferParseObjectInfo oinfo;        
@@ -107,7 +129,9 @@ static bool NvDsInferParseYoloV5(
     
     return true;
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/* C-linkage to prevent name-mangling */
 extern "C" bool NvDsInferParseCustomYoloV5(
     std::vector<NvDsInferLayerInfo> const &outputLayersInfo,
     NvDsInferNetworkInfo const &networkInfo,
@@ -117,6 +141,7 @@ extern "C" bool NvDsInferParseCustomYoloV5(
     return NvDsInferParseYoloV5(
         outputLayersInfo, networkInfo, detectionParams, objectList);
 }
+
 
 /* Check that the custom function has been defined correctly */
 CHECK_CUSTOM_PARSE_FUNC_PROTOTYPE(NvDsInferParseCustomYoloV5);

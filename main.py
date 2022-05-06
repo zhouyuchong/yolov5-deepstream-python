@@ -41,7 +41,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
     frame_number=0
     #Intiallizing object counter with 0.
     num_rects=0
-
     gst_buffer = info.get_buffer()
     if not gst_buffer:
         print("Unable to get GstBuffer ")
@@ -70,7 +69,6 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 
         frame_number=frame_meta.frame_num
         num_rects = frame_meta.num_obj_meta
-
         l_obj=frame_meta.obj_meta_list
         while l_obj is not None:
             try:
@@ -79,15 +77,13 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
                 obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
             except StopIteration:
                 break
-            # obj_counter[obj_meta.class_id] += 1
             # set bbox color in rgba
-            # print(obj_meta.class_id, obj_meta.obj_label, obj_meta.confidence, obj_meta.detector_bbox_info.org_bbox_coords.left)
-            #obj_meta.rect_params.border_color.set(1.0, 1.0, 1.0, 0.0)
+            print(obj_meta.class_id, obj_meta.obj_label, obj_meta.confidence)
             # set the border width in pixel
             obj_meta.rect_params.border_width=0
             obj_meta.rect_params.has_bg_color=1
             obj_meta.rect_params.bg_color.set(0.0, 0.5, 0.3, 0.4)
-   
+
             try: 
                 l_obj=l_obj.next
             except StopIteration:
@@ -104,7 +100,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
         # memory will not be claimed by the garbage collector.
         # Reading the display_text field here will return the C address of the
         # allocated string. Use pyds.get_string() to get the string content.
-        py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} Vehicle_count={} Person_count={}".format(frame_number, num_rects, obj_counter[PGIE_CLASS_ID_VEHICLE], obj_counter[PGIE_CLASS_ID_PERSON])
+        # py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} Vehicle_count={} Person_count={}".format(frame_number, num_rects, obj_counter[PGIE_CLASS_ID_VEHICLE], obj_counter[PGIE_CLASS_ID_PERSON])
 
         # Now set the offsets where the string should appear
         py_nvosd_text_params.x_offset = 10
@@ -130,17 +126,7 @@ def osd_sink_pad_buffer_probe(pad,info,u_data):
 			
     return Gst.PadProbeReturn.OK	
 
-def pipeline_pause(pipeline):
-    print('Pause')
-    pipeline.set_state(Gst.State.PAUSED)
-    
-def pipeline_play(pipeline):
-    print('Pause')
-    pipeline.set_state(Gst.State.PLAYING)
 
-def onKeyboardEvent(event):
-    print(event.Key)  # 返回按下的键
-    return True
 
 def main(args):
     # Check input arguments
@@ -269,13 +255,10 @@ def main(args):
 
     osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
-    # start play back and listen to events
     print("Starting pipeline \n")
     pipeline.set_state(Gst.State.PLAYING)
     try:
-        # keyboard.add_hotkey('q', pipeline_play(pipeline))
         loop.run()
-        #keyboard.add_hotkey('p', pipeline_pause(pipeline))
 
     except:
         pass
